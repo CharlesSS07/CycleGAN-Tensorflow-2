@@ -16,8 +16,9 @@ def make_dataset(img_paths, batch_size, load_size, crop_size, training, drop_rem
     else:
         @tf.function
         def _map_fn(img):  # preprocessing
-            img = tf.image.resize(img, [crop_size, crop_size])  # or img = tf.image.resize(img, [load_size, load_size]); img = tl.center_crop(img, crop_size)
-            img = tf.clip_by_value(img, 0, 255) / 255.0  # or img = tl.minmax_norm(img)
+            # img = tf.image.resize(img, [crop_size, crop_size]) # or img = tf.image.resize(img, [load_size, load_size]);
+            img = tl.center_crop(img, crop_size)
+            img = tf.clip_by_value(tf.cast(img, tf.float32), 0, 255) / 255.0  # or img = tl.minmax_norm(img)
             img = img * 2 - 1
             return img
 

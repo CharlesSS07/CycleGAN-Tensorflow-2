@@ -7,35 +7,41 @@ import tensorflow as tf
 import tensorflow.keras as keras
 import tf2lib as tl
 import tf2gan as gan
-import tqdm
+import tqdm.notebook as tqdm
 
 import data
 import module
 
+import glob
 
-# ==============================================================================
-# =                                   param                                    =
-# ==============================================================================
+if __name__=='__main__':
+    # ==============================================================================
+    # =                                   param                                    =
+    # ==============================================================================
 
-py.arg('--dataset', default='horse2zebra')
-py.arg('--datasets_dir', default='datasets')
-py.arg('--load_size', type=int, default=286)  # load image to this size
-py.arg('--crop_size', type=int, default=256)  # then crop to this size
-py.arg('--batch_size', type=int, default=1)
-py.arg('--epochs', type=int, default=200)
-py.arg('--epoch_decay', type=int, default=100)  # epoch to start decaying learning rate
-py.arg('--lr', type=float, default=0.0002)
-py.arg('--beta_1', type=float, default=0.5)
-py.arg('--adversarial_loss_mode', default='lsgan', choices=['gan', 'hinge_v1', 'hinge_v2', 'lsgan', 'wgan'])
-py.arg('--gradient_penalty_mode', default='none', choices=['none', 'dragan', 'wgan-gp'])
-py.arg('--gradient_penalty_weight', type=float, default=10.0)
-py.arg('--cycle_loss_weight', type=float, default=10.0)
-py.arg('--identity_loss_weight', type=float, default=0.0)
-py.arg('--pool_size', type=int, default=50)  # pool size to store fake samples
-args = py.args()
+    py.arg('--dataset', type=str, default='horse2zebra')
+    py.arg('--datasets_dir', default='datasets')
+    py.arg('--load_size', type=int, default=286)  # load image to this size
+    py.arg('--crop_size', type=int, default=256)  # then crop to this size
+    py.arg('--batch_size', type=int, default=1)
+    py.arg('--epochs', type=int, default=200)
+    py.arg('--epoch_decay', type=int, default=100)  # epoch to start decaying learning rate
+    py.arg('--lr', type=float, default=0.0002)
+    py.arg('--beta_1', type=float, default=0.5)
+    py.arg('--adversarial_loss_mode', default='lsgan', choices=['gan', 'hinge_v1', 'hinge_v2', 'lsgan', 'wgan'])
+    py.arg('--gradient_penalty_mode', default='none', choices=['none', 'dragan', 'wgan-gp'])
+    py.arg('--gradient_penalty_weight', type=float, default=10.0)
+    py.arg('--cycle_loss_weight', type=float, default=10.0)
+    py.arg('--identity_loss_weight', type=float, default=0.0)
+    py.arg('--pool_size', type=int, default=50)  # pool size to store fake samples
+    args = py.args()
+else:
+    from config import args
 
 # output_dir
 output_dir = py.join('output', args.dataset)
+output_dir = py.join(output_dir, f'{np.array([py.split(d)[-2] for d in np.sort(glob.glob(py.join(output_dir, "*")))]).astype(np.int32).max():03d}')
+
 py.mkdir(output_dir)
 
 # save settings
@@ -46,15 +52,15 @@ py.args_to_yaml(py.join(output_dir, 'settings.yml'), args)
 # =                                    data                                    =
 # ==============================================================================
 
-A_img_paths = py.glob(py.join(args.datasets_dir, args.dataset, 'trainA'), '*.jpg')
-B_img_paths = py.glob(py.join(args.datasets_dir, args.dataset, 'trainB'), '*.jpg')
+A_img_paths = py.glob(py.join(args.datasets_dir, args.dataset, 'trainA'), '*.png')
+B_img_paths = py.glob(py.join(args.datasets_dir, args.dataset, 'trainB'), '*.png')
 A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths, args.batch_size, args.load_size, args.crop_size, training=True, repeat=False)
 
 A2B_pool = data.ItemPool(args.pool_size)
 B2A_pool = data.ItemPool(args.pool_size)
 
-A_img_paths_test = py.glob(py.join(args.datasets_dir, args.dataset, 'testA'), '*.jpg')
-B_img_paths_test = py.glob(py.join(args.datasets_dir, args.dataset, 'testB'), '*.jpg')
+A_img_paths_test = py.glob(py.join(args.datasets_dir, args.dataset, 'testA'), '*.png')
+B_img_paths_test = py.glob(py.join(args.datasets_dir, args.dataset, 'testB'), '*.png')
 A_B_dataset_test, _ = data.make_zip_dataset(A_img_paths_test, B_img_paths_test, args.batch_size, args.load_size, args.crop_size, training=False, repeat=True)
 
 
@@ -182,38 +188,52 @@ try:  # restore checkpoint including the epoch counter
 except Exception as e:
     print(e)
 
-# summary
-train_summary_writer = tf.summary.create_file_writer(py.join(output_dir, 'summaries', 'train'))
+def train_CycleGAN():
+    
+    import logGPU_RAM
+    
+    # summary
+    train_summary_writer = tf.summary.create_file_writer(py.join(output_dir, 'summaries', 'train'))
+    logGPU_RAM.init_gpu_writers(py.join(output_dir, 'summaries', 'GPUs'))
 
-# sample
-test_iter = iter(A_B_dataset_test)
-sample_dir = py.join(output_dir, 'samples_training')
-py.mkdir(sample_dir)
+    # sample
+    test_iter = iter(A_B_dataset_test)
+    sample_dir = py.join(output_dir, 'samples_training')
+    py.mkdir(sample_dir)
+    
+    # timeing
+    import time
+    start_time = time.time()
+    
+    # main loop
+    with train_summary_writer.as_default():
+        for ep in tqdm.trange(args.epochs, desc='Epoch Loop'):
+            if ep < ep_cnt:
+                continue
 
-# main loop
-with train_summary_writer.as_default():
-    for ep in tqdm.trange(args.epochs, desc='Epoch Loop'):
-        if ep < ep_cnt:
-            continue
+            # update epoch counter
+            ep_cnt.assign_add(1)
 
-        # update epoch counter
-        ep_cnt.assign_add(1)
+            # train for an epoch
+            for A, B in tqdm.tqdm(A_B_dataset, desc='Inner Epoch Loop', total=len_dataset):
+                G_loss_dict, D_loss_dict = train_step(A, B)
 
-        # train for an epoch
-        for A, B in tqdm.tqdm(A_B_dataset, desc='Inner Epoch Loop', total=len_dataset):
-            G_loss_dict, D_loss_dict = train_step(A, B)
+                # # summary
+                tl.summary(G_loss_dict, step=G_optimizer.iterations, name='G_losses')
+                tl.summary(D_loss_dict, step=G_optimizer.iterations, name='D_losses')
+                tl.summary({'learning rate': G_lr_scheduler.current_learning_rate}, step=G_optimizer.iterations, name='learning rate')
+                tl.summary({'second since start': np.array(time.time()-start_time)}, step=G_optimizer.iterations, name='second_Per_Iteration')
+                logGPU_RAM.log_gpu_memory_to_tensorboard()
 
-            # # summary
-            tl.summary(G_loss_dict, step=G_optimizer.iterations, name='G_losses')
-            tl.summary(D_loss_dict, step=G_optimizer.iterations, name='D_losses')
-            tl.summary({'learning rate': G_lr_scheduler.current_learning_rate}, step=G_optimizer.iterations, name='learning rate')
+                # sample
+                if G_optimizer.iterations.numpy() % 100 == 0:
+                    A, B = next(test_iter)
+                    A2B, B2A, A2B2A, B2A2B = sample(A, B)
+                    img = im.immerge(np.concatenate([A, A2B, A2B2A, B, B2A, B2A2B], axis=0), n_rows=2)
+                    im.imwrite(img, py.join(sample_dir, 'iter-%09d.jpg' % G_optimizer.iterations.numpy()))
 
-            # sample
-            if G_optimizer.iterations.numpy() % 100 == 0:
-                A, B = next(test_iter)
-                A2B, B2A, A2B2A, B2A2B = sample(A, B)
-                img = im.immerge(np.concatenate([A, A2B, A2B2A, B, B2A, B2A2B], axis=0), n_rows=2)
-                im.imwrite(img, py.join(sample_dir, 'iter-%09d.jpg' % G_optimizer.iterations.numpy()))
+            # save checkpoint
+            checkpoint.save(ep)
 
-        # save checkpoint
-        checkpoint.save(ep)
+if __name__=='__main__':
+    train_CycleGAN()
