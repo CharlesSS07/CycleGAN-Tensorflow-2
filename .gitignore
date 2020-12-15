@@ -3,4 +3,4 @@ __pycache__/
 /datasets/
 /output/
 .ipynb_checkpoints/
-.ipynb
+*.ipynb
