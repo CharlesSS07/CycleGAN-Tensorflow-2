@@ -1,4 +1,4 @@
-Minor changes to [LynnHo/CycleGAN-Tensorflow-2](https://github.com/LynnHo/CycleGAN-Tensorflow-2).
+This branch includes minor changes to [LynnHo/CycleGAN-Tensorflow-2](https://github.com/LynnHo/CycleGAN-Tensorflow-2).
 Including:
  * config.py for changing the parameters used to train. Replaces commandline arguments when using Jupyter Notebook
  * `import train` instead of `python3 train.py`, and the function train.train_CycleGAN() for training in Jupyter Notebooks
