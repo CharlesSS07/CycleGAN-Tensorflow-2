@@ -201,6 +201,8 @@ def train_CycleGAN():
     sample_dir = py.join(output_dir, 'samples_training')
     py.mkdir(sample_dir)
     
+    test_sample = next(test_iter)
+    
     # timeing
     import time
     start_time = time.time()
@@ -217,21 +219,27 @@ def train_CycleGAN():
             # train for an epoch
             for A, B in tqdm.tqdm(A_B_dataset, desc='Inner Epoch Loop', total=len_dataset):
                 G_loss_dict, D_loss_dict = train_step(A, B)
+                
+                iteration = G_optimizer.iterations.numpy()
 
                 # # summary
-                tl.summary(G_loss_dict, step=G_optimizer.iterations, name='G_losses')
-                tl.summary(D_loss_dict, step=G_optimizer.iterations, name='D_losses')
-                tl.summary({'learning rate': G_lr_scheduler.current_learning_rate}, step=G_optimizer.iterations, name='learning rate')
-                tl.summary({'second since start': np.array(time.time()-start_time)}, step=G_optimizer.iterations, name='second_Per_Iteration')
+                tl.summary(G_loss_dict, step=iteration, name='G_losses')
+                tl.summary(D_loss_dict, step=iteration, name='D_losses')
+                tl.summary({'learning rate': G_lr_scheduler.current_learning_rate}, step=iteration, name='learning rate')
+                tl.summary({'second since start': np.array(time.time()-start_time)}, step=iteration, name='second_Per_Iteration')
                 logGPU_RAM.log_gpu_memory_to_tensorboard()
 
                 # sample
-                if G_optimizer.iterations.numpy() % 100 == 0:
+                if iteration % 100 == 0:
                     A, B = next(test_iter)
                     A2B, B2A, A2B2A, B2A2B = sample(A, B)
                     img = im.immerge(np.concatenate([A, A2B, A2B2A, B, B2A, B2A2B], axis=0), n_rows=2)
-                    im.imwrite(img, py.join(sample_dir, 'iter-%09d.jpg' % G_optimizer.iterations.numpy()))
-
+                    im.imwrite(img, py.join(sample_dir, 'iter-%09d-sample-test-random.jpg' % iteration))
+                if iteration % 50 ==0:
+                    A, B = test_sample
+                    A2B, B2A, A2B2A, B2A2B = sample(A, B)
+                    img = im.immerge(np.concatenate([A, A2B, A2B2A, B, B2A, B2A2B], axis=0), n_rows=2)
+                    im.imwrite(img, py.join(sample_dir, 'iter-%09d-sample-test-specific.jpg' % iteration))
             # save checkpoint
             checkpoint.save(ep)
 
