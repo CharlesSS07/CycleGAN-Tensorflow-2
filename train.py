@@ -34,13 +34,21 @@ if __name__=='__main__':
     py.arg('--cycle_loss_weight', type=float, default=10.0)
     py.arg('--identity_loss_weight', type=float, default=0.0)
     py.arg('--pool_size', type=int, default=50)  # pool size to store fake samples
+    py.arg('--new-run', type=bool, action='store_true', default=False)
     args = py.args()
 else:
     from config import args
 
 # output_dir
 output_dir = py.join('output', args.dataset)
-output_dir = py.join(output_dir, f'{np.array([py.split(d)[-2] for d in np.sort(glob.glob(py.join(output_dir, "*")))]).astype(np.int32).max():03d}')
+runs = glob.glob(py.join(output_dir, "*"))
+if len(runs) == 0:
+    run_id = 0
+else:
+    run_id = np.array([py.split(d)[-2] for d in runs]).astype(np.int32).max()
+    if config.args.new_run:
+        run_id+=1
+output_dir = py.join(output_dir, f'{run_id:04d}')
 
 py.mkdir(output_dir)
 
