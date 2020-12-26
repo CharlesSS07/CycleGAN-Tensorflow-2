@@ -4,6 +4,7 @@ Including:
  * `import train` instead of `python3 train.py`, and the function train.train_CycleGAN() for training in Jupyter Notebooks
  * Jupyter Notebook tqdm gui integration
  * logGPU_RAM.py for logging gpu usage to tensorboard with training metrics
+ * creates folder for new runs, use --new-run, or config.args.new_run
 
 ***News***
 
