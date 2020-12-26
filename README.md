@@ -1,6 +1,9 @@
-***Recommendation***
-
-- Our GAN based work for facial attribute editing - [AttGAN](https://github.com/LynnHo/AttGAN-Tensorflow).
+Minor changes to [LynnHo/CycleGAN-Tensorflow-2](https://github.com/LynnHo/CycleGAN-Tensorflow-2).
+Including:
+ * config.py for changing the parameters used to train. Replaces commandline arguments when using Jupyter Notebook
+ * `import train` instead of `python3 train.py`, and the function train.train_CycleGAN() for training in Jupyter Notebooks
+ * Jupyter Notebook tqdm gui integration
+ * logGPU_RAM.py for logging gpu usage to tensorboard with training metrics
 
 ***News***
 
