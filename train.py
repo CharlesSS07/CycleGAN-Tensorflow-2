@@ -34,7 +34,9 @@ if __name__=='__main__':
     py.arg('--cycle_loss_weight', type=float, default=10.0)
     py.arg('--identity_loss_weight', type=float, default=0.0)
     py.arg('--pool_size', type=int, default=50)  # pool size to store fake samples
-    py.arg('--new-run', type=bool, action='store_true', default=False)
+    py.arg('--new-run', type=bool, default=False)
+    py.arg('--run-id', type=int, default=False)
+    py.arg('--checkpoint-path', type=str, default=None)
     args = py.args()
 else:
     from config import args
@@ -46,8 +48,10 @@ if len(runs) == 0:
     run_id = 0
 else:
     run_id = np.array([py.split(d)[-2] for d in runs]).astype(np.int32).max()
-    if config.args.new_run:
+    if args.new_run:
         run_id+=1
+    if args.run_id is not False:
+        run_id = args.run_id
 output_dir = py.join(output_dir, f'{run_id:04d}')
 
 py.mkdir(output_dir)
@@ -192,7 +196,7 @@ checkpoint = tl.Checkpoint(dict(G_A2B=G_A2B,
                            py.join(output_dir, 'checkpoints'),
                            max_to_keep=5)
 try:  # restore checkpoint including the epoch counter
-    checkpoint.restore().assert_existing_objects_matched()
+    checkpoint.restore(save_path=args.checkpoint_path).assert_existing_objects_matched()
 except Exception as e:
     print(e)
 
@@ -238,12 +242,12 @@ def train_CycleGAN():
                 logGPU_RAM.log_gpu_memory_to_tensorboard()
 
                 # sample
-                if iteration % 100 == 0:
+                if iteration % 1000 == 0:
                     A, B = next(test_iter)
                     A2B, B2A, A2B2A, B2A2B = sample(A, B)
                     img = im.immerge(np.concatenate([A, A2B, A2B2A, B, B2A, B2A2B], axis=0), n_rows=2)
                     im.imwrite(img, py.join(sample_dir, 'iter-%09d-sample-test-random.jpg' % iteration))
-                if iteration % 50 ==0:
+                if iteration % 100 == 0:
                     A, B = test_sample
                     A2B, B2A, A2B2A, B2A2B = sample(A, B)
                     img = im.immerge(np.concatenate([A, A2B, A2B2A, B, B2A, B2A2B], axis=0), n_rows=2)

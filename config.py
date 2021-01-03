@@ -42,6 +42,10 @@ args.cycle_loss_weight = 10.0
 args.identity_loss_weight = 0.0
 args.pool_size = 50
 
+args.new_run = False
+args.run_id = False
+args.checkpoint_path = None
+
 # now, if you `import config ...`
 # and set `args.xyz = 123`,
 # other things that `import config as args`

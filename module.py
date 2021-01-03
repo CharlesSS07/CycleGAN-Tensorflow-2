@@ -73,7 +73,7 @@ def ResnetGenerator(input_shape=(256, 256, 3),
     h = keras.layers.Conv2D(output_channels, 7, padding='valid')(h)
     h = tf.tanh(h)
 
-    return keras.Model(inputs=inputs, outputs=h)
+    return keras.Model(inputs=inputs, outputs=h, name='ResnetGenerator')
 
 
 def ConvDiscriminator(input_shape=(256, 256, 3),
